@@ -33,24 +33,43 @@ export default function AdminDashboard() {
     'block bg-gray-800 hover:bg-gray-700 p-4 rounded text-white font-semibold shadow transition'
 
   return (
-    <div className="min-h-screen bg-black text-white p-8">
-      <h1 className="text-3xl font-bold mb-8 text-center">🛠️ Admin Dashboard</h1>
+ <div className="min-h-screen bg-black text-white p-8">
+      <h1 className="text-3xl font-bold mb-8">🛠 Admin Dashboard</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
-        <Link href="/admin/pending-professors" className={linkClass}>
-          👩‍🏫 Review Pending Professors
+      <div className="space-y-6">
+        <Link href="/admin/pending-courses">
+          <div className="bg-gray-800 hover:bg-gray-700 p-6 rounded shadow cursor-pointer">
+            <h2 className="text-xl font-semibold">📄 Review Pending Courses</h2>
+            <p className="text-gray-400">Approve or reject new course submissions.</p>
+          </div>
         </Link>
 
-        <Link href="/admin/pending-courses" className={linkClass}>
-          📚 Review Pending Courses
+        <Link href="/admin/pending-professors">
+          <div className="bg-gray-800 hover:bg-gray-700 p-6 rounded shadow cursor-pointer">
+            <h2 className="text-xl font-semibold">👨‍🏫 Review Pending Professors</h2>
+            <p className="text-gray-400">Approve or reject new professor submissions.</p>
+          </div>
         </Link>
 
-        <Link href="/admin/manage-professors" className={linkClass}>
-          📝 Manage Professors (Edit/Delete)
+        <Link href="/admin/pending-tutors">
+          <div className="bg-gray-800 hover:bg-gray-700 p-6 rounded shadow cursor-pointer">
+            <h2 className="text-xl font-semibold">📥 Review Pending Tutors</h2>
+            <p className="text-gray-400">Approve or reject tutor applications.</p>
+          </div>
         </Link>
 
-        <Link href="/admin/manage-courses" className={linkClass}>
-          📝 Manage Courses (Edit/Delete)
+        <Link href="/admin/manage-courses">
+          <div className="bg-gray-800 hover:bg-gray-700 p-6 rounded shadow cursor-pointer">
+            <h2 className="text-xl font-semibold">🧾 Manage Courses</h2>
+            <p className="text-gray-400">Edit or delete existing courses.</p>
+          </div>
+        </Link>
+
+        <Link href="/admin/manage-professors">
+          <div className="bg-gray-800 hover:bg-gray-700 p-6 rounded shadow cursor-pointer">
+            <h2 className="text-xl font-semibold">👥 Manage Professors</h2>
+            <p className="text-gray-400">Edit or delete professors.</p>
+          </div>
         </Link>
       </div>
     </div>
