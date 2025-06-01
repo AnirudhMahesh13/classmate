@@ -9,6 +9,8 @@ import {
   collection,
   addDoc,
   getDocs,
+  updateDoc,
+  arrayUnion,
   serverTimestamp,
 } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -20,7 +22,8 @@ export default function AddCoursePage() {
   const [schoolId, setSchoolId] = useState('')
   const [courseCode, setCourseCode] = useState('')
   const [courseName, setCourseName] = useState('')
-  const [professors, setProfessors] = useState('')
+  const [professorsList, setProfessorsList] = useState<any[]>([])
+  const [selectedProfessors, setSelectedProfessors] = useState<string[]>([])
   const [courses, setCourses] = useState<any[]>([])
   const [loadingCourses, setLoadingCourses] = useState(true)
 
@@ -48,34 +51,34 @@ export default function AddCoursePage() {
         ...doc.data(),
       }))
       setCourses(list)
+
+      const profSnap = await getDocs(collection(db, 'schools', school, 'professors'))
+      const profList = profSnap.docs.map((doc) => ({
+        id: doc.id,
+        name: doc.data().name,
+      }))
+      setProfessorsList(profList)
+
       setLoadingCourses(false)
     })
 
     return () => unsub()
   }, [])
 
-  const handleSubmit = async (e: any) => {
-    e.preventDefault()
+const handleSubmit = async (e: any) => {
+  e.preventDefault()
 
-    const profArray = professors
-      .split(',')
-      .map((p) => p.trim())
-      .filter((p) => p.length > 0)
+  await addDoc(collection(db, 'schools', schoolId, 'pendingCourses'), {
+    code: courseCode,
+    name: courseName,
+    professors: selectedProfessors,
+    createdAt: serverTimestamp(),
+    submittedBy: auth.currentUser?.uid || null
+  })
 
-    const docRef = await addDoc(collection(db, 'schools', schoolId, 'courses'), {
-      code: courseCode,
-      name: courseName,
-      professors: profArray,
-      followers: [],
-      avgRating: null,
-      ratingCount: 0,
-      createdAt: serverTimestamp(),
-      submittedBy: auth.currentUser?.uid || null,
-      schoolId: schoolId,
-    })
+  router.push('/courses')
+}
 
-    router.push(`/courses/${docRef.id}`)
-  }
 
   return (
     <div className="min-h-screen bg-black text-white p-8">
@@ -98,13 +101,25 @@ export default function AddCoursePage() {
           className="w-full p-3 bg-gray-800 rounded"
           required
         />
-        <input
-          type="text"
-          placeholder="Professors (comma-separated)"
-          value={professors}
-          onChange={(e) => setProfessors(e.target.value)}
-          className="w-full p-3 bg-gray-800 rounded"
-        />
+
+        <div>
+          <label className="block mb-1">Select Professors:</label>
+          <select
+            multiple
+            value={selectedProfessors}
+            onChange={(e) =>
+              setSelectedProfessors(Array.from(e.target.selectedOptions).map((o) => o.value))
+            }
+            className="w-full p-3 bg-gray-800 rounded h-32"
+          >
+            {professorsList.map((prof) => (
+              <option key={prof.id} value={prof.id}>
+                {prof.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <button
           type="submit"
           className="w-full bg-green-600 hover:bg-green-700 transition py-3 rounded font-semibold"

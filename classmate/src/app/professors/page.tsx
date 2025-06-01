@@ -53,7 +53,7 @@ export default function ProfessorsPage() {
       ) : professors.length === 0 ? (
         <p>No professors found.</p>
       ) : (
-        <ul className="space-y-4">
+        <ul className="space-y-4 mb-6">
           {professors.map((prof) => (
             <li key={prof.id} className="bg-gray-800 p-4 rounded shadow">
               <Link href={`/professors/${prof.id}`} className="text-xl font-semibold hover:underline">
@@ -64,6 +64,13 @@ export default function ProfessorsPage() {
           ))}
         </ul>
       )}
+
+      <button
+        onClick={() => router.push('/professors/add')}
+        className="bg-green-600 px-4 py-2 rounded hover:bg-green-700"
+      >
+        + Add Professor
+      </button>
     </div>
   )
 }

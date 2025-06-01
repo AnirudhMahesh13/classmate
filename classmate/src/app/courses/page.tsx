@@ -5,6 +5,7 @@ import { auth, db } from '@/lib/firebase'
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore'
 import { useRouter } from 'next/navigation'
 import { onAuthStateChanged } from 'firebase/auth'
+import Link from 'next/link'
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState<any[]>([])
@@ -33,9 +34,34 @@ export default function CoursesPage() {
 
       const courseCol = collection(db, 'schools', school, 'courses')
       const snapshot = await getDocs(courseCol)
-      const courseList = snapshot.docs.map(doc => ({
+      const rawCourses = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...(doc.data() as any)
+      }))
+
+      const allProfIds = new Set<string>()
+      rawCourses.forEach(course => {
+        if (Array.isArray(course.professors)) {
+          course.professors.forEach((pid: string) => allProfIds.add(pid))
+        }
+      })
+
+      const profSnaps = await Promise.all(
+        Array.from(allProfIds).map((id) =>
+          getDoc(doc(db, 'schools', school, 'professors', id))
+        )
+      )
+
+      const profMap: Record<string, string> = {}
+      profSnaps.forEach(snap => {
+        if (snap.exists()) {
+          profMap[snap.id] = snap.data().name
+        }
+      })
+
+      const courseList = rawCourses.map(course => ({
+        ...course,
+        professorNames: (course.professors || []).map((id: string) => profMap[id] || 'Unknown')
       }))
 
       setCourses(courseList)
@@ -61,14 +87,16 @@ export default function CoursesPage() {
       ) : (
         <ul className="space-y-3">
           {courses.map(course => (
-            <li key={course.id} className="bg-gray-800 p-4 rounded shadow">
-              <h2 className="text-xl font-semibold">{course.name}</h2>
-              {course.professors && (
-                <p className="text-sm text-gray-300">
-                  Professors: {course.professors.join(', ')}
-                </p>
-              )}
-            </li>
+            <Link href={`/courses/${course.id}`} key={course.id} passHref>
+              <li className="bg-gray-800 p-4 rounded shadow hover:bg-gray-700 cursor-pointer transition">
+                <h2 className="text-xl font-semibold">{course.name}</h2>
+                {course.professorNames && course.professorNames.length > 0 && (
+                  <p className="text-sm text-gray-300">
+                    Professors: {course.professorNames.join(', ')}
+                  </p>
+                )}
+              </li>
+            </Link>
           ))}
         </ul>
       )}
