@@ -3,13 +3,38 @@
 import './globals.css'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { auth } from '@/lib/firebase'
+import { useEffect, useState } from 'react'
+import { auth, db } from '@/lib/firebase'
+import { onAuthStateChanged } from 'firebase/auth'
+import { doc, getDoc } from 'firebase/firestore'
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
 
   const showNavbar = !['/login', '/school'].includes(pathname)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setIsAdmin(false)
+        return
+      }
+
+      const ref = doc(db, 'users', user.uid)
+      const snap = await getDoc(ref)
+      const data = snap.data()
+
+      if (data?.role === 'admin') {
+        setIsAdmin(true)
+      } else {
+        setIsAdmin(false)
+      }
+    })
+
+    return () => unsub()
+  }, [])
 
   const handleLogout = async () => {
     await auth.signOut()
@@ -24,6 +49,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="flex space-x-6 text-lg font-medium">
               <Link href="/dashboard" className="hover:underline">🏠 Dashboard</Link>
               <Link href="/courses" className="hover:underline">📚 Courses</Link>
+              <Link href="/professors" className="hover:underline">👨‍🏫 Professors</Link>
+              {isAdmin && (
+                <Link href="/admin" className="hover:underline">🛠 Admin Dashboard</Link>
+              )}
             </div>
             <button
               onClick={handleLogout}
