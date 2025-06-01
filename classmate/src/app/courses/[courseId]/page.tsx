@@ -55,9 +55,24 @@ export default function CoursePage() {
         return
       }
 
-      const data = courseSnap.data()
-      setCourse({ id: courseSnap.id, ...data })
-      setFollowing(data.followers?.includes(user.uid))
+const data = courseSnap.data()
+
+// Fetch professor names from IDs
+let professorNames: string[] = []
+if (Array.isArray(data.professors)) {
+  const profSnaps = await Promise.all(
+    data.professors.map((id: string) =>
+      getDoc(doc(db, 'schools', schoolId, 'professors', id))
+    )
+  )
+  professorNames = profSnaps
+    .filter((snap) => snap.exists())
+    .map((snap) => snap.data().name)
+}
+
+setCourse({ id: courseSnap.id, ...data, professorNames })
+setFollowing(data.followers?.includes(user.uid))
+
       setLoading(false)
 
       // Load all reviews
@@ -144,9 +159,10 @@ export default function CoursePage() {
     <div className="min-h-screen bg-gray-950 text-white p-6 space-y-6">
       <h1 className="text-3xl font-bold">{course.name}</h1>
 
-      {course.professors && (
-        <p>Professors: {course.professors.join(', ')}</p>
-      )}
+{course.professorNames && course.professorNames.length > 0 && (
+  <p>Professors: {course.professorNames.join(', ')}</p>
+)}
+
 
       <p className="text-gray-300">{course.description}</p>
       <p>Followers: {course.followers?.length || 0}</p>
