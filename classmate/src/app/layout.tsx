@@ -50,7 +50,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/dashboard" className="hover:underline">🏠 Dashboard</Link>
               <Link href="/courses" className="hover:underline">📚 Courses</Link>
               <Link href="/professors" className="hover:underline">👨‍🏫 Professors</Link>
-              <Link href="/tutor" className="hover:underline">🧑‍🏫 Tutor Hub</Link>
+              <Link href="/tutor/tutorhub" className="hover:underline">🧑‍🏫 Tutor Hub</Link>
+              <Link href="/tutor" className="hover:underline">🎓 My Tutors</Link>
               <Link href="/profile" className="hover:underline">👤 Profile</Link>
               {isAdmin && (
                 <Link href="/admin" className="hover:underline">🛠 Admin Dashboard</Link>
