@@ -114,6 +114,7 @@ export default function TutorProfilePage() {
       {tutor.specialty && <p>Specialty: {tutor.specialty}</p>}
       {tutor.bio && <p className="text-gray-300">{tutor.bio}</p>}
       <p>⭐ Rating: {tutor.avgRating || 'N/A'} ({tutor.ratingCount || 0} reviews)</p>
+      {tutor.rate && <p>💵 Rate: ${tutor.rate.toFixed(2)}</p>}
 
       <div className="bg-gray-800 p-4 rounded mt-4">
         <h2 className="text-xl font-semibold mb-2">Leave a Review</h2>
@@ -159,21 +160,40 @@ export default function TutorProfilePage() {
 
       <div className="mt-10">
         <h2 className="text-xl font-semibold mb-3">📅 Available Sessions</h2>
-        {school && <AvailableSlotsSection schoolId={school} tutorId={uid as string} />}
+        {school && tutor && (
+          <AvailableSlotsSection
+            schoolId={school}
+            tutorId={tutor.id}
+            tutorRate={tutor.rate}
+          />
+        )}
       </div>
     </div>
   )
 }
 
-function AvailableSlotsSection({ schoolId, tutorId }: { schoolId: string; tutorId: string }) {
+function AvailableSlotsSection({
+  schoolId,
+  tutorId,
+  tutorRate
+}: {
+  schoolId: string
+  tutorId: string
+  tutorRate: number
+}) {
   const [slots, setSlots] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchSlots = async () => {
     const snap = await getDocs(collection(db, 'schools', schoolId, 'tutors', tutorId, 'availability'))
+    const now = Date.now()
     const data = snap.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }))
-      .filter(slot => !slot.isBooked)
+      .map(doc => ({ id: doc.id, ...(doc.data() as any) }))
+      .filter(slot =>
+        !slot.isBooked &&
+        slot.startTime?.seconds * 1000 > now
+      )
+
     setSlots(data)
     setLoading(false)
   }
@@ -184,26 +204,44 @@ function AvailableSlotsSection({ schoolId, tutorId }: { schoolId: string; tutorI
 
   const handleBookSlot = async (slot: any) => {
     const user = auth.currentUser
-    if (!user) return
+    if (!user || !tutorRate) return
 
-    // Update availability
-    await updateDoc(doc(db, 'schools', schoolId, 'tutors', tutorId, 'availability', slot.id), {
-      isBooked: true,
-      bookedBy: user.uid,
+    // 🔒 Check latest slot state before proceeding
+    const slotRef = doc(db, 'schools', schoolId, 'tutors', tutorId, 'availability', slot.id)
+    const latestSnap = await getDoc(slotRef)
+
+    if (!latestSnap.exists()) {
+      alert('This slot no longer exists.')
+      return
+    }
+
+    const latest = latestSnap.data()
+    if (latest.isBooked) {
+      alert('Sorry, this slot has already been booked.')
+      fetchSlots() // refresh list
+      return
+    }
+
+    // ✅ Proceed to Stripe checkout
+    const res = await fetch('/api/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        slot,
+        tutorId,
+        studentId: user.uid,
+        rate: tutorRate
+      })
     })
 
-    // Create session mirror
-    await addDoc(collection(db, 'schools', schoolId, 'sessions'), {
-      tutorId,
-      studentId: user.uid,
-      slotId: slot.id,
-      startTime: slot.startTime,
-      endTime: slot.endTime,
-      createdAt: serverTimestamp()
-    })
-
-    fetchSlots()
+    const data = await res.json()
+    if (data.url) {
+      window.location.href = data.url
+    } else {
+      alert('Failed to create Stripe session.')
+    }
   }
+
 
   if (loading) return <p>Loading available sessions...</p>
 
@@ -224,7 +262,7 @@ function AvailableSlotsSection({ schoolId, tutorId }: { schoolId: string; tutorI
             onClick={() => handleBookSlot(slot)}
             className="bg-green-600 px-4 py-2 rounded hover:bg-green-700 text-sm"
           >
-            Book
+            Book (${tutorRate.toFixed(2)})
           </button>
         </li>
       ))}

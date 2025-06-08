@@ -23,6 +23,7 @@ export default function TutorProfilePage() {
 
   const [bio, setBio] = useState('')
   const [specialty, setSpecialty] = useState('')
+  const [rate, setRate] = useState<number>(0)
 
   const router = useRouter()
 
@@ -73,9 +74,9 @@ export default function TutorProfilePage() {
 
       setAvgRating(tutorData.avgRating || 4.8)
       setSessionCount(tutorData.totalSessions || 12)
-
       setBio(tutorData.bio || '')
       setSpecialty(tutorData.specialty || '')
+      setRate(tutorData.rate || 0)
       setSchoolName(userData.school)
       setLoading(false)
     })
@@ -90,6 +91,7 @@ export default function TutorProfilePage() {
     await updateDoc(tutorRef, {
       bio,
       specialty,
+      rate,
     })
 
     alert('✅ Profile updated!')
@@ -139,6 +141,17 @@ export default function TutorProfilePage() {
             value={specialty}
             onChange={(e) => setSpecialty(e.target.value)}
             className="bg-gray-800 text-white p-2 rounded w-full"
+          />
+        </div>
+
+        <div>
+          <label className="block mb-1 text-sm">Rate (USD):</label>
+          <input
+            type="number"
+            value={rate}
+            onChange={(e) => setRate(Number(e.target.value))}
+            className="bg-gray-800 text-white p-2 rounded w-full"
+            placeholder="Enter your session rate"
           />
         </div>
 

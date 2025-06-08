@@ -38,9 +38,16 @@ export default function StudentSessionsPage() {
       setStudentId(user.uid)
 
       const snap = await getDocs(collection(db, 'schools', school, 'sessions'))
+      const now = Date.now()
       const mySessions = snap.docs
         .map(d => ({ id: d.id, ...(d.data() as any) }))
-        .filter(session => session.studentId === user.uid)
+        .filter(session =>
+          session.studentId === user.uid &&
+          session.startTime?.seconds &&
+          session.endTime?.seconds &&
+          session.startTime.seconds * 1000 > now
+        )
+
 
       const enriched = await Promise.all(mySessions.map(async (s) => {
         const tutorSnap = await getDoc(doc(db, 'users', s.tutorId))
@@ -51,7 +58,7 @@ export default function StudentSessionsPage() {
         }
       }))
 
-      setSessions(enriched)
+      setSessions(enriched.sort((a, b) => a.startTime.seconds - b.startTime.seconds))
       setLoading(false)
     })
 
@@ -80,20 +87,22 @@ export default function StudentSessionsPage() {
       ) : (
         <ul className="space-y-4">
           {sessions.map((s) => (
-            <li key={s.id} className="bg-gray-800 p-4 rounded flex justify-between items-center">
+            <li key={s.id} className="bg-gray-900 border border-gray-700 p-4 rounded shadow-sm hover:bg-gray-800 transition-all flex justify-between items-center">
               <div>
-                <p>
-                  🕒 {new Date(s.startTime.seconds * 1000).toLocaleString()} -{' '}
-                  {new Date(s.endTime.seconds * 1000).toLocaleString()}
-                </p>
-                <p className="text-sm text-gray-300">🧑‍🏫 {s.tutorName}</p>
+              <p className="text-lg font-semibold mb-1 text-white">
+                🕒 {new Date(s.startTime.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – {new Date(s.endTime.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <span className="ml-1 text-sm text-gray-400">
+                  on {new Date(s.startTime.seconds * 1000).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                </span>
+              </p>
+              <p className="text-sm text-gray-400">🧑‍🏫 {s.tutorName}</p>
               </div>
-              <button
-                onClick={() => handleCancel(s)}
-                className="bg-red-600 px-3 py-1 rounded hover:bg-red-700 text-sm"
-              >
-                Cancel
-              </button>
+            <button
+              onClick={() => handleCancel(s)}
+              className="bg-red-600 px-4 py-2 rounded hover:bg-red-700 transition-colors duration-200 text-sm font-medium"
+            >
+              Cancel
+            </button>
             </li>
           ))}
         </ul>

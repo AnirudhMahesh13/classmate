@@ -76,7 +76,7 @@ export default function TutorPage() {
 
             <Link
               href="/tutor/tutorhub/availability"
-              className="block bg-yellow-600 px-4 py-3 rounded hover:bg-purple-700 w-full max-w-sm"
+              className="block bg-yellow-600 px-4 py-3 rounded hover:bg-yellow-700 w-full max-w-sm"
             >
               📅 Manage Tutoring Availability
             </Link>
