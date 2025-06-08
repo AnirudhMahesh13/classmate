@@ -110,15 +110,24 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <button
-        onClick={async () => {
-          await auth.signOut()
-          router.push('/login')
-        }}
-        className="bg-red-600 px-4 py-2 rounded hover:bg-red-700 transition"
-      >
-        Sign out
-      </button>
+      <div className="space-y-4">
+        <button
+          onClick={() => router.push('/dashboard/sessions')}
+          className="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 transition"
+        >
+          📅 View My Sessions
+        </button>
+
+        <button
+          onClick={async () => {
+            await auth.signOut()
+            router.push('/login')
+          }}
+          className="bg-red-600 px-4 py-2 rounded hover:bg-red-700 transition"
+        >
+          Sign out
+        </button>
+      </div>
     </div>
   )
 }
