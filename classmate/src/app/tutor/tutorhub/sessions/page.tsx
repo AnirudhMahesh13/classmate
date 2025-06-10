@@ -13,11 +13,21 @@ import {
 } from 'firebase/firestore'
 import { onAuthStateChanged } from 'firebase/auth'
 
+type Session = {
+  id: string
+  tutorId: string
+  studentId: string
+  slotId: string
+  startTime: { seconds: number }
+  endTime: { seconds: number }
+  studentName?: string
+}
+
 export default function TutorSessionsPage() {
   const router = useRouter()
   const [schoolId, setSchoolId] = useState('')
   const [tutorId, setTutorId] = useState('')
-  const [sessions, setSessions] = useState<any[]>([])
+  const [sessions, setSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -38,11 +48,22 @@ export default function TutorSessionsPage() {
       setTutorId(user.uid)
 
       const snap = await getDocs(collection(db, 'schools', school, 'sessions'))
-      const booked = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(session => session.tutorId === user.uid)
 
-      // Optionally fetch student names
+      const booked = snap.docs
+        .map(d => {
+          const data = d.data() as Omit<Session, 'id'>
+          return {
+            id: d.id,
+            ...data
+          }
+        })
+        .filter(session =>
+          session.tutorId === user.uid &&
+          session.startTime?.seconds &&
+          session.endTime?.seconds &&
+          session.studentId
+        )
+
       const enhanced = await Promise.all(booked.map(async (s) => {
         const studentSnap = await getDoc(doc(db, 'users', s.studentId))
         const student = studentSnap.exists() ? studentSnap.data() : {}
@@ -52,21 +73,19 @@ export default function TutorSessionsPage() {
         }
       }))
 
-      setSessions(enhanced)
+      setSessions(enhanced.sort((a, b) => b.startTime.seconds - a.startTime.seconds))
       setLoading(false)
     })
 
     return () => unsub()
   }, [])
 
-  const handleCancel = async (session: any) => {
-    // Unbook the availability slot
+  const handleCancel = async (session: Session) => {
     await updateDoc(doc(db, 'schools', schoolId, 'tutors', tutorId, 'availability', session.slotId), {
       isBooked: false,
       bookedBy: null
     })
 
-    // Delete session record
     await deleteDoc(doc(db, 'schools', schoolId, 'sessions', session.id))
 
     setSessions(prev => prev.filter(s => s.id !== session.id))
@@ -85,9 +104,19 @@ export default function TutorSessionsPage() {
           {sessions.map((s) => (
             <li key={s.id} className="bg-gray-800 p-4 rounded flex justify-between items-center">
               <div>
-                <p>
-                  🕒 {new Date(s.startTime.seconds * 1000).toLocaleString()} -{' '}
-                  {new Date(s.endTime.seconds * 1000).toLocaleString()}
+                <p className="font-medium">
+                  🕒{' '}
+                  {new Date(s.startTime.seconds * 1000).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}{' '}
+                  -{' '}
+                  {new Date(s.endTime.seconds * 1000).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}{' '}
+                  on{' '}
+                  {new Date(s.startTime.seconds * 1000).toLocaleDateString()}
                 </p>
                 <p className="text-sm text-gray-300">👤 {s.studentName}</p>
               </div>
