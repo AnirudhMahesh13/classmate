@@ -21,7 +21,7 @@ export default function BookingSuccessPage() {
     const slotId = searchParams.get('slotId')
     const tutorId = searchParams.get('tutorId')
     const studentId = searchParams.get('studentId')
-    const schoolId = 'Carleton' // Replace with dynamic value if needed
+    const schoolId = 'Carleton' // Replace with dynamic if needed
 
     if (!slotId || !tutorId || !studentId) return
 
@@ -33,13 +33,13 @@ export default function BookingSuccessPage() {
         if (!slotSnap.exists()) throw new Error('Slot does not exist')
         const slotData = slotSnap.data()
 
-        // Step 1: Mark slot as booked
+        // Mark slot as booked
         await updateDoc(slotRef, {
           isBooked: true,
           bookedBy: studentId
         })
 
-        // Step 2: Create session document
+        // Create session
         await addDoc(collection(db, 'schools', schoolId, 'sessions'), {
           tutorId,
           studentId,
@@ -47,6 +47,36 @@ export default function BookingSuccessPage() {
           startTime: slotData.startTime,
           endTime: slotData.endTime,
           createdAt: serverTimestamp()
+        })
+
+        // Fetch user info
+        const [tutorSnap, studentSnap] = await Promise.all([
+          getDoc(doc(db, 'users', tutorId)),
+          getDoc(doc(db, 'users', studentId))
+        ])
+
+        const tutorData = tutorSnap.data()
+        const studentData = studentSnap.data()
+
+        if (!tutorData?.email || !studentData?.email) {
+          throw new Error('Missing user email(s)')
+        }
+
+        const tutorRate = tutorData?.rate || 0
+
+        // Send confirmation email
+        await fetch('/api/email/send-confirmation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tutorEmail: tutorData.email,
+            studentEmail: studentData.email,
+            tutorName: tutorData.displayName || tutorData.email,
+            studentName: studentData.displayName || studentData.email,
+            startTime: slotData.startTime,
+            endTime: slotData.endTime,
+            rate: tutorRate,
+          })
         })
 
         setConfirmed(true)
