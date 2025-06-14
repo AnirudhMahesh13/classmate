@@ -7,9 +7,8 @@ import {
   doc,
   getDoc,
   updateDoc,
-  addDoc,
-  serverTimestamp,
-  collection
+  setDoc,
+  serverTimestamp
 } from 'firebase/firestore'
 
 export default function BookingSuccessPage() {
@@ -24,7 +23,7 @@ export default function BookingSuccessPage() {
     const stripeSessionId = searchParams.get('session_id')
     const schoolId = 'Carleton' // Replace with dynamic if needed
 
-    //if (!slotId || !tutorId || !studentId || !stripeSessionId) return
+    if (!slotId || !tutorId || !studentId || !stripeSessionId) return
 
     const finalizeBooking = async () => {
       try {
@@ -40,14 +39,14 @@ export default function BookingSuccessPage() {
           bookedBy: studentId
         })
 
-        // 2. Create session (✅ Save Stripe session ID too)
-        await addDoc(collection(db, 'schools', schoolId, 'sessions'), {
+        // 2. Create session using Stripe session ID as Firestore doc ID
+        await setDoc(doc(db, 'schools', schoolId, 'sessions', stripeSessionId), {
           tutorId,
           studentId,
           slotId,
           startTime: slotData.startTime,
           endTime: slotData.endTime,
-          stripeSessionId: stripeSessionId,
+          stripeSessionId,
           createdAt: serverTimestamp()
         })
 

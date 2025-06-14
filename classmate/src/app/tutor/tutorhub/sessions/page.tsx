@@ -20,6 +20,7 @@ type Session = {
   slotId: string
   startTime: { seconds: number }
   endTime: { seconds: number }
+  stripeSessionId: string // ✅ added
   studentName?: string
 }
 
@@ -81,14 +82,50 @@ export default function TutorSessionsPage() {
   }, [])
 
   const handleCancel = async (session: Session) => {
-    await updateDoc(doc(db, 'schools', schoolId, 'tutors', tutorId, 'availability', session.slotId), {
-      isBooked: false,
-      bookedBy: null
-    })
+    try {
+      await updateDoc(doc(db, 'schools', schoolId, 'tutors', tutorId, 'availability', session.slotId), {
+        isBooked: false,
+        bookedBy: null
+      })
 
-    await deleteDoc(doc(db, 'schools', schoolId, 'sessions', session.id))
+      const [studentSnap, tutorSnap] = await Promise.all([
+        getDoc(doc(db, 'users', session.studentId)),
+        getDoc(doc(db, 'users', session.tutorId)),
+      ])
 
-    setSessions(prev => prev.filter(s => s.id !== session.id))
+      const student = studentSnap.data()
+      const tutor = tutorSnap.data()
+
+      if (!student?.email || !tutor?.email) {
+        throw new Error('Missing user email(s)')
+      }
+
+      await fetch('/api/email/send-cancellation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tutorEmail: tutor.email,
+          studentEmail: student.email,
+          tutorName: tutor.displayName || tutor.email,
+          studentName: student.displayName || student.email,
+          startTime: session.startTime,
+          endTime: session.endTime,
+          cancelledBy: 'Tutor'
+        })
+      })
+
+      await fetch('/api/stripe/refund', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stripeSessionId: session.stripeSessionId }) // ✅ FIXED
+      })
+
+      await deleteDoc(doc(db, 'schools', schoolId, 'sessions', session.id))
+
+      setSessions(prev => prev.filter(s => s.id !== session.id))
+    } catch (err) {
+      console.error('Tutor cancel error:', err)
+    }
   }
 
   if (loading) return <p className="text-white p-6">Loading sessions...</p>
