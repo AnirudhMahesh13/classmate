@@ -33,7 +33,8 @@ export async function POST(req: NextRequest) {
         tutorId,
         studentId,
       },
-      success_url: `${process.env.NEXT_PUBLIC_DOMAIN}/booking/success?slotId=${slot.id}&tutorId=${tutorId}&studentId=${studentId}`,
+      success_url: `${process.env.NEXT_PUBLIC_DOMAIN}/booking/success?slotId=${slot.id}&tutorId=${tutorId}&studentId=${studentId}&session_id={CHECKOUT_SESSION_ID}`,
+      //success_url: `${process.env.NEXT_PUBLIC_DOMAIN}/booking/success?slotId=${slot.id}&tutorId=${tutorId}&studentId=${studentId}`,
       cancel_url: `${process.env.NEXT_PUBLIC_DOMAIN}/dashboard/sessions?cancelled=true`,
     })
 

@@ -48,13 +48,13 @@ export default function StudentSessionsPage() {
           session.startTime.seconds * 1000 > now
         )
 
-
       const enriched = await Promise.all(mySessions.map(async (s) => {
         const tutorSnap = await getDoc(doc(db, 'users', s.tutorId))
         const tutor = tutorSnap.exists() ? tutorSnap.data() : {}
         return {
           ...s,
-          tutorName: tutor.displayName || tutor.email || 'Unknown Tutor'
+          tutorName: tutor.displayName || tutor.email || 'Unknown Tutor',
+          tutorEmail: tutor.email || '',
         }
       }))
 
@@ -66,13 +66,43 @@ export default function StudentSessionsPage() {
   }, [])
 
   const handleCancel = async (session: any) => {
+    const studentSnap = await getDoc(doc(db, 'users', studentId))
+    const student = studentSnap.data()
+
+    // 1. Unbook the slot
     await updateDoc(doc(db, 'schools', schoolId, 'tutors', session.tutorId, 'availability', session.slotId), {
       isBooked: false,
       bookedBy: null
     })
 
+    // 2. Delete the session
     await deleteDoc(doc(db, 'schools', schoolId, 'sessions', session.id))
 
+    // 3. Email both parties
+    await fetch('/api/email/send-cancellation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tutorEmail: session.tutorEmail,
+        studentEmail: student?.email,
+        tutorName: session.tutorName,
+        studentName: student?.displayName || student?.email,
+        startTime: session.startTime,
+        endTime: session.endTime,
+        cancelledBy: 'student'
+      })
+    })
+
+    // 4. Refund the session
+    await fetch('/api/stripe/refund', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        stripeSessionId: session.stripeSessionId
+      })
+    })
+
+    // 5. Update local state
     setSessions((prev) => prev.filter(s => s.id !== session.id))
   }
 
@@ -89,20 +119,20 @@ export default function StudentSessionsPage() {
           {sessions.map((s) => (
             <li key={s.id} className="bg-gray-900 border border-gray-700 p-4 rounded shadow-sm hover:bg-gray-800 transition-all flex justify-between items-center">
               <div>
-              <p className="text-lg font-semibold mb-1 text-white">
-                🕒 {new Date(s.startTime.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – {new Date(s.endTime.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                <span className="ml-1 text-sm text-gray-400">
-                  on {new Date(s.startTime.seconds * 1000).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
-                </span>
-              </p>
-              <p className="text-sm text-gray-400">🧑‍🏫 {s.tutorName}</p>
+                <p className="text-lg font-semibold mb-1 text-white">
+                  🕒 {new Date(s.startTime.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – {new Date(s.endTime.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  <span className="ml-1 text-sm text-gray-400">
+                    on {new Date(s.startTime.seconds * 1000).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                  </span>
+                </p>
+                <p className="text-sm text-gray-400">🧑‍🏫 {s.tutorName}</p>
               </div>
-            <button
-              onClick={() => handleCancel(s)}
-              className="bg-red-600 px-4 py-2 rounded hover:bg-red-700 transition-colors duration-200 text-sm font-medium"
-            >
-              Cancel
-            </button>
+              <button
+                onClick={() => handleCancel(s)}
+                className="bg-red-600 px-4 py-2 rounded hover:bg-red-700 transition-colors duration-200 text-sm font-medium"
+              >
+                Cancel
+              </button>
             </li>
           ))}
         </ul>
