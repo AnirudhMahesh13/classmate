@@ -21,9 +21,10 @@ export default function BookingSuccessPage() {
     const slotId = searchParams.get('slotId')
     const tutorId = searchParams.get('tutorId')
     const studentId = searchParams.get('studentId')
+    const stripeSessionId = searchParams.get('session_id')
     const schoolId = 'Carleton' // Replace with dynamic if needed
 
-    if (!slotId || !tutorId || !studentId) return
+    //if (!slotId || !tutorId || !studentId || !stripeSessionId) return
 
     const finalizeBooking = async () => {
       try {
@@ -33,45 +34,48 @@ export default function BookingSuccessPage() {
         if (!slotSnap.exists()) throw new Error('Slot does not exist')
         const slotData = slotSnap.data()
 
-        // Mark slot as booked
+        // 1. Mark slot as booked
         await updateDoc(slotRef, {
           isBooked: true,
           bookedBy: studentId
         })
 
-        // Create session
+        // 2. Create session (✅ Save Stripe session ID too)
         await addDoc(collection(db, 'schools', schoolId, 'sessions'), {
           tutorId,
           studentId,
           slotId,
           startTime: slotData.startTime,
           endTime: slotData.endTime,
+          stripeSessionId: stripeSessionId,
           createdAt: serverTimestamp()
         })
 
-        // Fetch user info
-        const [tutorSnap, studentSnap] = await Promise.all([
+        // 3. Fetch user info
+        const [studentSnap, tutorUserSnap, tutorProfileSnap] = await Promise.all([
+          getDoc(doc(db, 'users', studentId)),
           getDoc(doc(db, 'users', tutorId)),
-          getDoc(doc(db, 'users', studentId))
+          getDoc(doc(db, 'schools', schoolId, 'tutors', tutorId)),
         ])
 
-        const tutorData = tutorSnap.data()
         const studentData = studentSnap.data()
+        const tutorUserData = tutorUserSnap.data()
+        const tutorProfileData = tutorProfileSnap.data()
 
-        if (!tutorData?.email || !studentData?.email) {
+        if (!tutorUserData?.email || !studentData?.email) {
           throw new Error('Missing user email(s)')
         }
 
-        const tutorRate = tutorData?.rate || 0
+        const tutorRate = tutorProfileData?.rate || 0
 
-        // Send confirmation email
+        // 4. Send confirmation email
         await fetch('/api/email/send-confirmation', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            tutorEmail: tutorData.email,
+            tutorEmail: tutorUserData.email,
             studentEmail: studentData.email,
-            tutorName: tutorData.displayName || tutorData.email,
+            tutorName: tutorUserData.displayName || tutorUserData.email,
             studentName: studentData.displayName || studentData.email,
             startTime: slotData.startTime,
             endTime: slotData.endTime,
