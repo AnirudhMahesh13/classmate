@@ -56,7 +56,7 @@ Students are left guessing every semester – which prof to take, how they grade
 
 Anirudh Mahesh  
 Product & Engineering  
-[@anirudhmahesh](https://github.com/anirudhmahesh)
+[@AnirudhMahesh13](https://github.com/AnirudhMahesh13)
 
 ---
 
